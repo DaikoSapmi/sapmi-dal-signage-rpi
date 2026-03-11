@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="se">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sápmi dál Signage</title>
+  <link rel="stylesheet" href="styles.css?v=20260308d" />
+</head>
+<body>
+  <button id="settingsBtn" class="settings-btn" title="Heivehusat">⚙️</button>
+  <aside id="settingsPanel" class="settings-panel hidden">
+    <div class="settings-head"><strong>RSS heivehusat</strong><button id="settingsClose" class="settings-close">✕</button></div>
+    <div id="settingsSources"></div>
+    <div class="settings-add">
+      <input id="newSourceName" type="text" placeholder="Namma" />
+      <input id="newSourceUrl" type="text" placeholder="https://.../feed" />
+      <input id="newSourceLimit" type="number" min="1" step="1" placeholder="Ášši mearri (guorus=buot)" />
+      <button id="addSourceBtn">Lasit gáldu</button>
+    </div>
+    <div class="settings-actions"><button id="settingsSave">Vurke</button></div>
+  </aside>
+  <div id="stage" class="stage">
+    <div class="overlay"></div>
+    <img id="bg" class="bg" alt="" />
+    <div class="content">
+      <div id="source" class="source"></div>
+      <h1 id="title" class="title"></h1>
+      <div id="meta" class="meta"></div>
+    </div>
+  </div>
+  <script src="app.js?v=20260310a"></script>
+</body>
+</html>

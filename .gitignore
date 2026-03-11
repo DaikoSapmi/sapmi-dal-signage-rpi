@@ -1,0 +1,5 @@
+.DS_Store
+.runtime/
+__pycache__/
+*.pyc
+web/data/news.json

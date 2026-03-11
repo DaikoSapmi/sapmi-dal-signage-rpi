@@ -1,0 +1,21 @@
+html,body{margin:0;height:100%;background:#000;color:#fff;font-family:Inter,system-ui,sans-serif;overflow:hidden}
+.settings-btn{position:fixed;top:10px;right:12px;left:auto;z-index:20;border:0;background:transparent;color:#fff;font-size:22px;line-height:1;cursor:pointer;opacity:.9;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.settings-btn:hover{opacity:1}
+.settings-panel{position:fixed;top:42px;right:10px;left:auto;z-index:30;width:min(430px,92vw);max-height:80vh;overflow:auto;background:#111d;border:1px solid #ffffff44;border-radius:10px;padding:10px;backdrop-filter:blur(6px)}
+.settings-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.settings-close{border:0;background:transparent;color:#fff;font-size:18px;cursor:pointer}
+.settings-row{display:grid;grid-template-columns:1fr 92px;gap:8px;align-items:center;border-top:1px solid #ffffff22;padding:8px 0}
+.settings-row input,.settings-add input{width:100%;padding:6px;border-radius:6px;border:1px solid #ffffff44;background:#0008;color:#fff}
+.settings-add{display:grid;grid-template-columns:1fr;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid #ffffff22}
+.settings-add button,.settings-actions button{padding:7px 10px;border-radius:6px;border:1px solid #ffffff44;background:#fff2;color:#fff;cursor:pointer}
+.settings-actions{display:flex;justify-content:flex-end;margin-top:10px}
+.hidden{display:none}
+.stage{position:relative;width:100%;height:100%}
+.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.8;transform:scale(1.04);transition:opacity .9s ease, transform 10s ease}
+.overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.72),rgba(0,0,0,.2) 50%, rgba(0,0,0,.55))}
+.content{position:absolute;left:4vw;right:4vw;bottom:6vh;z-index:3}
+.source{display:inline-block;background:#ffffff22;padding:.35rem .6rem;border-radius:.4rem;font-weight:700;letter-spacing:.03em}
+.title{font-size:clamp(2rem,4vw,4.6rem);line-height:1.04;margin:.8rem 0;max-width:85%}
+.meta{font-size:clamp(1rem,1.4vw,1.6rem);opacity:.9}
+.stage.fade .bg,.stage.fade .content{opacity:0;transition:opacity .6s ease}
+.stage.fade .bg{transform:scale(1.08)}

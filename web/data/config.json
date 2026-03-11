@@ -1,0 +1,34 @@
+{
+  "sources": [
+    {
+      "name": "NRK Sápmi",
+      "url": "https://www.nrk.no/sapmi/oddasat.rss",
+      "maxItems": 6
+    },
+    {
+      "name": "Yle Sápmi",
+      "url": "https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_SAPMI",
+      "maxItems": 6
+    },
+    {
+      "name": "SVT Norrbotten",
+      "url": "https://www.svt.se/nyheter/lokalt/norrbotten/rss.xml",
+      "maxItems": 6
+    },
+    {
+      "name": "Ávvir",
+      "url": "https://avvir.no/feed/",
+      "maxItems": 6
+    },
+    {
+      "name": "Ságat",
+      "url": "https://www.sagat.no/atom.xml",
+      "maxItems": 6
+    },
+    {
+      "name": "iFinnmark",
+      "url": "https://www.ifinnmark.no/rss/karasjok/",
+      "maxItems": 6
+    }
+  ]
+}
