@@ -3,6 +3,7 @@ const REFRESH_MS = 120000;
 let items = [];
 let idx = 0;
 let CONFIG_SOURCES = [];
+let DISPLAY_COUNT = 5;
 let SETTINGS_OPEN = false;
 
 function fmt(iso){
@@ -28,17 +29,19 @@ function toMs(iso){
   return Number.isFinite(t) ? t : 0;
 }
 
-function pickDisplayItems(raw){
-  // Krav: 5 nyeste nyheter totalt (uansett kilde), rotert kronologisk.
+function pickDisplayItems(raw, displayCount=5){
+  const count = Number.isFinite(displayCount) && displayCount > 0 ? displayCount : 5;
+
+  // Krav: nyeste nyheter totalt (uansett kilde), rotert kronologisk.
   const valid = (raw || []).filter(i => i && i.title && i.url);
 
-  // Finn de 5 nyeste først.
-  const newestFive = valid
+  // Finn de N nyeste først.
+  const newest = valid
     .sort((a, b) => toMs(b.published_at) - toMs(a.published_at))
-    .slice(0, 5);
+    .slice(0, count);
 
-  // Roter i kronologisk rekkefølge (eldst -> nyest blant de 5 nyeste).
-  return newestFive.sort((a, b) => toMs(a.published_at) - toMs(b.published_at));
+  // Roter i kronologisk rekkefølge (eldst -> nyest blant de N nyeste).
+  return newest.sort((a, b) => toMs(a.published_at) - toMs(b.published_at));
 }
 
 async function fetchConfigSources(){
@@ -120,7 +123,8 @@ async function loadData(){
   try{
     const r=await fetch('data/news.json?ts='+Date.now());
     const d=await r.json();
-    items=pickDisplayItems(d.items);
+    DISPLAY_COUNT = Number.isFinite(Number(d.display_count)) && Number(d.display_count) > 0 ? Number(d.display_count) : 5;
+    items=pickDisplayItems(d.items, DISPLAY_COUNT);
     if(idx>=items.length) idx=0;
   }catch(e){ }
 }

@@ -121,12 +121,25 @@ def fallback_meta_from_article(url: str):
 
 def parse_channels_conf(path: Path):
     if not path.exists():
-        return []
+        return {'sources': [], 'display_count': 5}
 
     rows = []
+    display_count = 5
     for raw in path.read_text(encoding='utf-8').splitlines():
         line = raw.strip()
         if not line or line.startswith('#'):
+            continue
+
+        # Settings: @display_count=5
+        if line.startswith('@') and '=' in line:
+            k, v = [p.strip() for p in line.split('=', 1)]
+            if k.lower() == '@display_count':
+                try:
+                    n = int(v)
+                    if n > 0:
+                        display_count = n
+                except Exception:
+                    pass
             continue
 
         # Format: Name|URL|maxItems|enabled
@@ -150,7 +163,7 @@ def parse_channels_conf(path: Path):
         if name and url and enabled:
             rows.append({'name': name, 'url': url, 'maxItems': max_items})
 
-    return rows
+    return {'sources': rows, 'display_count': display_count}
 
 
 def ensure_channels_conf_exists():
@@ -160,9 +173,13 @@ def ensure_channels_conf_exists():
     CHANNELS_CONF_PATH.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         '# Sápmi dál kanal-konfigurasjon',
-        '# Én kanal per linje: Name|URL|maxItems|enabled',
+        '# Innstillinger:',
+        '# @display_count=5   (antall nyheter som vises i rotasjon)',
+        '#',
+        '# Kanaler: Én kanal per linje: Name|URL|maxItems|enabled',
         '# Eksempel: NRK Sápmi|https://www.nrk.no/sapmi/oddasat.rss|6|1',
         '# Sett enabled=0 for å slå av en kanal midlertidig',
+        '@display_count=5',
         '',
     ]
     for s in DEFAULT_SOURCES:
@@ -171,13 +188,15 @@ def ensure_channels_conf_exists():
     CHANNELS_CONF_PATH.write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
 
-def load_sources():
+def load_sources_and_settings():
     ensure_channels_conf_exists()
 
     # Foretrekk enkel nano-vennlig channels.conf hvis den finnes/er gyldig.
-    conf_sources = parse_channels_conf(CHANNELS_CONF_PATH)
+    conf = parse_channels_conf(CHANNELS_CONF_PATH)
+    conf_sources = conf.get('sources', [])
+    conf_display_count = conf.get('display_count', 5)
     if conf_sources:
-        return conf_sources
+        return conf_sources, conf_display_count
 
     cfg = {}
     if CONFIG_PATH.exists():
@@ -201,7 +220,7 @@ def load_sources():
         CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
         CONFIG_PATH.write_text(json.dumps({'sources': DEFAULT_SOURCES}, ensure_ascii=False, indent=2), encoding='utf-8')
 
-    return normalized
+    return normalized, 5
 
 
 def extract_first_href(html_text: str) -> str:
@@ -333,7 +352,7 @@ def parse_feed(source: str, xml_text: str, max_items=None):
 
 def main():
     all_items = []
-    sources = load_sources()
+    sources, display_count = load_sources_and_settings()
     for src in sources:
         source = src['name']
         url = src['url']
@@ -391,6 +410,7 @@ def main():
     payload = {
         'updated_at': datetime.now(timezone.utc).isoformat(),
         'count': len(items),
+        'display_count': display_count,
         'items': items[:120],
     }
 

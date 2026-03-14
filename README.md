@@ -45,18 +45,21 @@ Rediger kanalene her:
 nano web/data/channels.conf
 ```
 
-Format per linje:
+Innstilling + format:
 
 ```text
+@display_count=5
 Navn|RSS/Atom-URL|maxItems|enabled
 ```
 
 Eksempel:
 
 ```text
+@display_count=5
 NRK Sápmi|https://www.nrk.no/sapmi/oddasat.rss|6|1
 ```
 
+- `@display_count`: hvor mange nyheter som vises i rotasjon
 - `maxItems`: hvor mange artikler hentes fra kanalen per oppdatering
 - `enabled`: `1` = på, `0` = av
 
