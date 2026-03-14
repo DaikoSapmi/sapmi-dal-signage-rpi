@@ -62,17 +62,37 @@ def parse_date(value: str):
     return None
 
 
+def _looks_like_image_url(url: str, node_type: str = '') -> bool:
+    u = (url or '').lower()
+    t = (node_type or '').lower()
+    if not u:
+        return False
+    if any(ext in u for ext in ('.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif')):
+        return True
+    # No file extension in URL is also common (e.g. VG CDN), rely on MIME/type hints.
+    if t.startswith('image/') or t.startswith('img/'):
+        return True
+    return False
+
+
 def pick_image(item_elem, summary_text=''):
-    # enclosure/media:content/media:thumbnail first
-    media_namespaces = [
+    # Try RSS/MRSS image fields first
+    media_tags = [
         '{http://search.yahoo.com/mrss/}content',
         '{http://search.yahoo.com/mrss/}thumbnail',
         'enclosure',
+        'image',
+        'imgRegular',
+        '{http://www.vg.no/namespace}img',
+        '{http://www.vg.no/namespace}articleImg',
     ]
-    for tag in media_namespaces:
+
+    for tag in media_tags:
         for node in item_elem.findall(tag):
-            url = node.attrib.get('url', '').strip()
-            if url and ('.jpg' in url or '.jpeg' in url or '.png' in url or '.webp' in url):
+            # image/imgRegular/vg:img can be text nodes, others often use url attr
+            url = (node.attrib.get('url', '') or (node.text or '')).strip()
+            node_type = node.attrib.get('type', '')
+            if _looks_like_image_url(url, node_type):
                 return url
 
     # image in html content/description
