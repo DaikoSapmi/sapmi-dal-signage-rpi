@@ -22,28 +22,23 @@ function fmt(iso){
   return `${month} ${day}. b. ${year}, ${hh}:${mm}`;
 }
 
-function safeItems(raw){
-  return (raw||[]).filter(i=>i && i.title && i.url).slice(0,120);
+function toMs(iso){
+  if(!iso) return 0;
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) ? t : 0;
 }
 
-function interleaveBySource(arr){
-  const buckets = new Map();
-  for(const it of arr){
-    const k = it.source || 'Eará';
-    if(!buckets.has(k)) buckets.set(k, []);
-    buckets.get(k).push(it);
-  }
-  const keys=[...buckets.keys()];
-  const out=[];
-  let added=true;
-  while(added){
-    added=false;
-    for(const k of keys){
-      const b=buckets.get(k);
-      if(b && b.length){ out.push(b.shift()); added=true; }
-    }
-  }
-  return out;
+function pickDisplayItems(raw){
+  // Krav: 5 nyeste nyheter totalt (uansett kilde), rotert kronologisk.
+  const valid = (raw || []).filter(i => i && i.title && i.url);
+
+  // Finn de 5 nyeste først.
+  const newestFive = valid
+    .sort((a, b) => toMs(b.published_at) - toMs(a.published_at))
+    .slice(0, 5);
+
+  // Roter i kronologisk rekkefølge (eldst -> nyest blant de 5 nyeste).
+  return newestFive.sort((a, b) => toMs(a.published_at) - toMs(b.published_at));
 }
 
 async function fetchConfigSources(){
@@ -125,7 +120,7 @@ async function loadData(){
   try{
     const r=await fetch('data/news.json?ts='+Date.now());
     const d=await r.json();
-    items=interleaveBySource(safeItems(d.items));
+    items=pickDisplayItems(d.items);
     if(idx>=items.length) idx=0;
   }catch(e){ }
 }
