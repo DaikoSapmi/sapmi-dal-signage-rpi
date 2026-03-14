@@ -50,6 +50,9 @@ Innstilling + format:
 
 ```text
 @display_count=5
+@weather_name=Kárášjohka
+@weather_lat=69.4719
+@weather_lon=25.5112
 Navn|RSS/Atom-URL|maxItems|enabled
 ```
 
@@ -61,6 +64,8 @@ NRK Sápmi|https://www.nrk.no/sapmi/oddasat.rss|6|1
 ```
 
 - `@display_count`: hvor mange nyheter som vises i rotasjon
+- `@weather_name`: visningsnavn for sted i vær-linjen
+- `@weather_lat` / `@weather_lon`: koordinater for værdata (MET/yr)
 - `maxItems`: hvor mange artikler hentes fra kanalen per oppdatering
 - `enabled`: `1` = på, `0` = av
 

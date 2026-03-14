@@ -8,14 +8,45 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent / 'web'
 CONFIG = ROOT / 'data' / 'config.json'
+CHANNELS_CONF = ROOT / 'data' / 'channels.conf'
 
-KARASJOK_LAT = 69.4719
-KARASJOK_LON = 25.5112
-MET_URL = f"https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={KARASJOK_LAT}&lon={KARASJOK_LON}"
+DEFAULT_WEATHER_NAME = 'Kárášjohka'
+DEFAULT_WEATHER_LAT = 69.4719
+DEFAULT_WEATHER_LON = 25.5112
 MET_USER_AGENT = "SapmiDalSignage/1.0 (+https://github.com/DaikoSapmi/sapmi-dal-signage-rpi; contact: rune@fjellheim.tv)"
 
+def load_weather_settings():
+    name = DEFAULT_WEATHER_NAME
+    lat = DEFAULT_WEATHER_LAT
+    lon = DEFAULT_WEATHER_LON
+
+    if CHANNELS_CONF.exists():
+        for raw in CHANNELS_CONF.read_text(encoding='utf-8').splitlines():
+            line = raw.strip()
+            if not line or line.startswith('#') or not line.startswith('@') or '=' not in line:
+                continue
+            key, value = [p.strip() for p in line.split('=', 1)]
+            k = key.lower()
+            if k == '@weather_name' and value:
+                name = value
+            elif k == '@weather_lat':
+                try:
+                    lat = float(value)
+                except Exception:
+                    pass
+            elif k == '@weather_lon':
+                try:
+                    lon = float(value)
+                except Exception:
+                    pass
+
+    return name, lat, lon
+
+
 def fetch_weather():
-    req = urllib.request.Request(MET_URL, headers={'User-Agent': MET_USER_AGENT, 'Accept': 'application/json'})
+    name, lat, lon = load_weather_settings()
+    met_url = f"https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={lat}&lon={lon}"
+    req = urllib.request.Request(met_url, headers={'User-Agent': MET_USER_AGENT, 'Accept': 'application/json'})
     with urllib.request.urlopen(req, timeout=15, context=ssl.create_default_context()) as resp:
         raw = resp.read().decode('utf-8', errors='replace')
     data = json.loads(raw)
@@ -34,7 +65,7 @@ def fetch_weather():
     symbol = summary.get('symbol_code', '')
 
     return {
-        'location': 'Kárášjohka',
+        'location': name,
         'temperature_c': temp,
         'symbol_code': symbol,
         'updated_at': datetime.now(timezone.utc).isoformat(),
