@@ -12,6 +12,7 @@ from urllib.parse import urljoin, unquote, urlparse, parse_qs
 ROOT = Path(__file__).resolve().parent.parent / 'web'
 DATA_PATH = ROOT / 'data' / 'news.json'
 CONFIG_PATH = ROOT / 'data' / 'config.json'
+CHANNELS_CONF_PATH = ROOT / 'data' / 'channels.conf'
 
 DEFAULT_SOURCES = [
     {'name': 'NRK Sápmi', 'url': 'https://www.nrk.no/sapmi/oddasat.rss'},
@@ -118,7 +119,66 @@ def fallback_meta_from_article(url: str):
         return '', ''
 
 
+def parse_channels_conf(path: Path):
+    if not path.exists():
+        return []
+
+    rows = []
+    for raw in path.read_text(encoding='utf-8').splitlines():
+        line = raw.strip()
+        if not line or line.startswith('#'):
+            continue
+
+        # Format: Name|URL|maxItems|enabled
+        parts = [p.strip() for p in line.split('|')]
+        if len(parts) < 2:
+            continue
+
+        name, url = parts[0], parts[1]
+        max_items = None
+        enabled = True
+
+        if len(parts) >= 3 and parts[2]:
+            try:
+                max_items = int(parts[2])
+            except Exception:
+                max_items = None
+
+        if len(parts) >= 4 and parts[3]:
+            enabled = parts[3].lower() not in ('0', 'false', 'no', 'off')
+
+        if name and url and enabled:
+            rows.append({'name': name, 'url': url, 'maxItems': max_items})
+
+    return rows
+
+
+def ensure_channels_conf_exists():
+    if CHANNELS_CONF_PATH.exists():
+        return
+
+    CHANNELS_CONF_PATH.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        '# Sápmi dál kanal-konfigurasjon',
+        '# Én kanal per linje: Name|URL|maxItems|enabled',
+        '# Eksempel: NRK Sápmi|https://www.nrk.no/sapmi/oddasat.rss|6|1',
+        '# Sett enabled=0 for å slå av en kanal midlertidig',
+        '',
+    ]
+    for s in DEFAULT_SOURCES:
+        lines.append(f"{s['name']}|{s['url']}|6|1")
+
+    CHANNELS_CONF_PATH.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+
 def load_sources():
+    ensure_channels_conf_exists()
+
+    # Foretrekk enkel nano-vennlig channels.conf hvis den finnes/er gyldig.
+    conf_sources = parse_channels_conf(CHANNELS_CONF_PATH)
+    if conf_sources:
+        return conf_sources
+
     cfg = {}
     if CONFIG_PATH.exists():
         try:

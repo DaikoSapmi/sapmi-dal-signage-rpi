@@ -37,6 +37,31 @@ Etter reboot skal skjermen starte automatisk i kiosk-modus på:
 
 ---
 
+## Endre kanaler raskt i terminal (nano)
+
+Rediger kanalene her:
+
+```bash
+nano web/data/channels.conf
+```
+
+Format per linje:
+
+```text
+Navn|RSS/Atom-URL|maxItems|enabled
+```
+
+Eksempel:
+
+```text
+NRK Sápmi|https://www.nrk.no/sapmi/oddasat.rss|6|1
+```
+
+- `maxItems`: hvor mange artikler hentes fra kanalen per oppdatering
+- `enabled`: `1` = på, `0` = av
+
+Lagre filen og vent opptil 5 min (eller kjør `./refresh-loop.sh` lokalt) for at endringer skal slå inn.
+
 ## Nyttige kommandoer
 
 Status:
