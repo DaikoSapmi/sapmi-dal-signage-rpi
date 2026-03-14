@@ -1,5 +1,6 @@
 const ROTATE_MS = 10000;
 const REFRESH_MS = 120000;
+const WEATHER_REFRESH_MS = 10 * 60 * 1000;
 let items = [];
 let idx = 0;
 let CONFIG_SOURCES = [];
@@ -152,13 +153,41 @@ function updateClock(){
   el.textContent = CLOCK_FMT.format(new Date());
 }
 
+function weatherEmoji(symbolCode=''){
+  const s = (symbolCode || '').toLowerCase();
+  if(s.includes('snow') || s.includes('sleet')) return '❄️';
+  if(s.includes('rain') || s.includes('drizzle')) return '🌧️';
+  if(s.includes('partlycloudy')) return '⛅';
+  if(s.includes('cloudy') || s.includes('fog')) return '☁️';
+  if(s.includes('clearsky') || s.includes('fair')) return '☀️';
+  return '🌤️';
+}
+
+async function loadWeather(){
+  const el = document.getElementById('weather');
+  if(!el) return;
+  try{
+    const r = await fetch('/api/weather?ts=' + Date.now());
+    if(!r.ok) throw new Error('weather unavailable');
+    const w = await r.json();
+    const t = Number(w.temperature_c);
+    const temp = Number.isFinite(t) ? `${Math.round(t)}°C` : '–';
+    const emoji = weatherEmoji(w.symbol_code);
+    el.textContent = `${w.location || 'Kárášjohka'} dál ${temp} ${emoji}`;
+  }catch{
+    el.textContent = 'Kárášjohka dál –';
+  }
+}
+
 (async function init(){
   wireSettings();
   await fetchConfigSources();
   await loadData();
+  await loadWeather();
   updateClock();
   next();
   setInterval(updateClock, 1000);
   setInterval(next, ROTATE_MS);
   setInterval(loadData, REFRESH_MS);
+  setInterval(loadWeather, WEATHER_REFRESH_MS);
 })();

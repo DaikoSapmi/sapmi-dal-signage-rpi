@@ -1,10 +1,45 @@
 #!/usr/bin/env python3
 import json
+import ssl
+import urllib.request
+from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent / 'web'
 CONFIG = ROOT / 'data' / 'config.json'
+
+KARASJOK_LAT = 69.4719
+KARASJOK_LON = 25.5112
+MET_URL = f"https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={KARASJOK_LAT}&lon={KARASJOK_LON}"
+MET_USER_AGENT = "SapmiDalSignage/1.0 (+https://github.com/DaikoSapmi/sapmi-dal-signage-rpi; contact: rune@fjellheim.tv)"
+
+def fetch_weather():
+    req = urllib.request.Request(MET_URL, headers={'User-Agent': MET_USER_AGENT, 'Accept': 'application/json'})
+    with urllib.request.urlopen(req, timeout=15, context=ssl.create_default_context()) as resp:
+        raw = resp.read().decode('utf-8', errors='replace')
+    data = json.loads(raw)
+
+    ts = data.get('properties', {}).get('timeseries', [])
+    if not ts:
+        raise RuntimeError('No timeseries from MET API')
+
+    first = ts[0]
+    details = first.get('data', {}).get('instant', {}).get('details', {})
+    temp = details.get('air_temperature')
+
+    summary = first.get('data', {}).get('next_1_hours', {}).get('summary', {})
+    if not summary:
+        summary = first.get('data', {}).get('next_6_hours', {}).get('summary', {})
+    symbol = summary.get('symbol_code', '')
+
+    return {
+        'location': 'Kárášjohka',
+        'temperature_c': temp,
+        'symbol_code': symbol,
+        'updated_at': datetime.now(timezone.utc).isoformat(),
+    }
+
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -26,6 +61,13 @@ class Handler(SimpleHTTPRequestHandler):
                 except Exception:
                     return self._json({'sources': []})
             return self._json({'sources': []})
+
+        if self.path.startswith('/api/weather'):
+            try:
+                return self._json(fetch_weather())
+            except Exception as e:
+                return self._json({'error': str(e)}, 502)
+
         return super().do_GET()
 
     def do_POST(self):
