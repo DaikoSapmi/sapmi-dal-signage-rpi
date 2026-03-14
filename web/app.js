@@ -6,6 +6,16 @@ let CONFIG_SOURCES = [];
 let DISPLAY_COUNT = 5;
 let SETTINGS_OPEN = false;
 
+const CLOCK_FMT = new Intl.DateTimeFormat('no-NO', {
+  timeZone: 'Europe/Oslo',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit'
+});
+
 function fmt(iso){
   if(!iso) return '';
   const d=new Date(iso);
@@ -136,11 +146,19 @@ function next(){
   idx=(idx+1)%items.length;
 }
 
+function updateClock(){
+  const el = document.getElementById('clock');
+  if(!el) return;
+  el.textContent = CLOCK_FMT.format(new Date());
+}
+
 (async function init(){
   wireSettings();
   await fetchConfigSources();
   await loadData();
+  updateClock();
   next();
+  setInterval(updateClock, 1000);
   setInterval(next, ROTATE_MS);
   setInterval(loadData, REFRESH_MS);
 })();
