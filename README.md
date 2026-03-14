@@ -20,11 +20,12 @@ chmod +x pi/*.sh start.sh refresh-loop.sh scripts/update_data.py
 ```
 
 Installer-scriptet:
-- installerer `chromium-browser` og `python3`
+- installerer `chromium` (eller `chromium-browser`) og `python3`
 - oppretter og aktiverer systemd-tjenester:
   - `sapmi-signage-web.service`
   - `sapmi-signage-updater.service`
-- legger til kiosk autostart i `~/.config/lxsession/LXDE-pi/autostart`
+  - `sapmi-signage-kiosk.service` (starter Chromium i kiosk på `DISPLAY=:0`)
+- rydder gammel LXDE-autostart-blokk for å unngå dobbelt browser
 
 ## 3) Reboot
 
