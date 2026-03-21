@@ -134,10 +134,28 @@ function creditFromImageUrl(url=''){
   }
 }
 
+function cleanCredit(raw=''){
+  let s = String(raw || '').trim();
+  if(!s) return '';
+
+  // Remove accidental HTML fragments/tags that may leak from feed parsing.
+  s = s
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\"\>.*$/g, '')
+    .replace(/"\>.*$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Normalize duplicated prefixes from feed/source.
+  s = s.replace(/^(Govva|Govven|Foto|Photo)\s*:\s*/i, '').trim();
+  return s;
+}
+
 function imageCredit(item){
-  if(item?.image_credit && String(item.image_credit).trim()) return String(item.image_credit).trim();
+  const explicit = cleanCredit(item?.image_credit || '');
+  if(explicit) return `Govven: ${explicit}`;
   const fromUrl = creditFromImageUrl(item?.image_url || '');
-  if(fromUrl) return `Govva: ${fromUrl}`;
+  if(fromUrl) return `Govven: ${fromUrl}`;
   return '';
 }
 
