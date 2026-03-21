@@ -24,6 +24,13 @@ DEFAULT_SOURCES = [
 
 IMAGE_FALLBACK_SOURCES = {'Ávvir', 'SVT Norrbotten', 'iFinnmark'}
 
+# NRK Sápmi: supplement oddasat with more NRK feeds listed on nrk.no/rss/
+NRK_SAPMI_EXTRA_FEEDS = [
+    'https://www.nrk.no/tromsogfinnmark/toppsaker.rss',
+    'https://www.nrk.no/tromsogfinnmark/siste.rss',
+    'https://www.nrk.no/norge/toppsaker.rss',
+]
+
 # Known generic/placeholder logo images that should not be used as story media.
 SVT_PLACEHOLDER_IMAGE_HASHES = {
     '2f93ba843f7e400a13c86112e65490896499522866cbeab7a04aa887efed39b6',
@@ -394,6 +401,31 @@ def parse_ifinnmark_html(source: str, page_url: str, html_text: str, max_items=N
     return items
 
 
+def nrk_sapmi_relevance(item: dict) -> int:
+    url = (item.get('url') or '').lower()
+    text = f"{item.get('title','')} {item.get('summary','')}".lower()
+
+    score = 0
+    # Directly on NRK Sápmi is strongest signal.
+    if '/sapmi/' in url:
+        score += 100
+
+    # Sápmi/Sami-related words often indicate relevant NRK items outside /sapmi/ path.
+    keywords = [
+        'sápmi', 'sapmi', 'sámi', 'sami', 'sameting', 'sametings',
+        'reindrift', 'reindrifts', 'boazodoallu', 'boazu',
+        'karasjok', 'kárášjohka', 'kautokeino', 'guovdageaidnu',
+        'unjárga', 'deatnu', 'teanu', 'porsanger', 'varanger',
+    ]
+    score += sum(12 for k in keywords if k in text)
+
+    # Northern district feed can still be relevant but is weaker than direct Sápmi tags.
+    if '/tromsogfinnmark/' in url:
+        score += 8
+
+    return score
+
+
 def parse_feed(source: str, xml_text: str, max_items=None):
     items = []
     root = ET.fromstring(xml_text)
@@ -471,7 +503,24 @@ def main():
         try:
             xml_text = fetch_xml(url)
             try:
-                all_items.extend(parse_feed(source, xml_text, max_items=max_items))
+                parsed = parse_feed(source, xml_text, max_items=max_items)
+                if source == 'NRK Sápmi':
+                    for it in parsed:
+                        it['_nrk_feed'] = 'oddasat'
+                all_items.extend(parsed)
+
+                # Enrich NRK Sápmi using additional RSS feeds from nrk.no/rss.
+                if source == 'NRK Sápmi' and 'oddasat.rss' in url:
+                    for extra in NRK_SAPMI_EXTRA_FEEDS:
+                        try:
+                            extra_xml = fetch_xml(extra)
+                            # Pull a moderate amount; ranking/filtering happens after merge.
+                            extra_items = parse_feed(source, extra_xml, max_items=20)
+                            for it in extra_items:
+                                it['_nrk_feed'] = 'extra'
+                            all_items.extend(extra_items)
+                        except Exception:
+                            continue
             except Exception:
                 # Fallback for sites exposing HTML list pages at "rss" URLs (e.g. iFinnmark)
                 if 'ifinnmark.no/rss/' in url:
@@ -499,7 +548,30 @@ def main():
         cleaned.append(it)
     items = cleaned
 
-    items.sort(key=lambda x: x.get('published_at', ''), reverse=True)
+    # Keep NRK Sápmi source aligned with actual Sápmi relevance.
+    # - Always keep items from oddasat (curated Sápmi feed)
+    # - For supplemental NRK feeds, require Sápmi relevance.
+    nrk_filtered = []
+    for it in items:
+        if it.get('source') != 'NRK Sápmi':
+            nrk_filtered.append(it)
+            continue
+
+        rel = nrk_sapmi_relevance(it)
+        it['_nrk_rel'] = rel
+        feed_kind = it.get('_nrk_feed', '')
+
+        if feed_kind == 'oddasat':
+            nrk_filtered.append(it)
+            continue
+
+        # For extra feeds: require explicit relevance signals.
+        if rel >= 12:
+            nrk_filtered.append(it)
+    items = nrk_filtered
+
+    # Sort newest first, with a slight NRK-Sápmi relevance boost where available.
+    items.sort(key=lambda x: ((x.get('_nrk_rel', 0)), x.get('published_at', '')), reverse=True)
 
     # Fallback image scraping for sources where feeds often omit images
     checked = 0
@@ -542,6 +614,11 @@ def main():
 
     # Keep only news that actually has image/media, so signage never rotates text-only items.
     items = [it for it in items if (it.get('image_url') or '').strip()]
+
+    # Internal ranking keys should not leak to output JSON.
+    for it in items:
+        it.pop('_nrk_rel', None)
+        it.pop('_nrk_feed', None)
 
     payload = {
         'updated_at': datetime.now(timezone.utc).isoformat(),
