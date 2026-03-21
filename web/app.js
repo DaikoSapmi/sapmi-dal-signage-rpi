@@ -40,11 +40,17 @@ function toMs(iso){
   return Number.isFinite(t) ? t : 0;
 }
 
+function hasMedia(item){
+  const candidate = item?.image_url || item?.media_url || item?.media || '';
+  return typeof candidate === 'string' && candidate.trim().length > 0;
+}
+
 function pickDisplayItems(raw, displayCount=5){
   const count = Number.isFinite(displayCount) && displayCount > 0 ? displayCount : 5;
 
   // Krav: nyeste nyheter totalt (uansett kilde), rotert kronologisk.
-  const valid = (raw || []).filter(i => i && i.title && i.url);
+  // Og kun saker med bilde/media.
+  const valid = (raw || []).filter(i => i && i.title && i.url && hasMedia(i));
 
   // Finn de N nyeste først.
   const newest = valid
