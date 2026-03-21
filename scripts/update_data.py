@@ -93,7 +93,27 @@ def is_unwanted_logo_image(url: str, source: str = '') -> bool:
     return False
 
 
-def pick_credit(item_elem):
+def extract_credit_from_text(text: str) -> str:
+    if not text:
+        return ''
+
+    # Common credit markers in NO/SE/FI/EN + Sami UI label.
+    patterns = [
+        r'(?:Foto|Bild|Kuva|Photo|Govva)\s*[:\-]\s*([^<\n\r]+)',
+        r'(?:Fotograf|Photographer)\s*[:\-]\s*([^<\n\r]+)',
+        r'©\s*([^<\n\r]+)',
+    ]
+
+    for pat in patterns:
+        m = re.search(pat, text, flags=re.IGNORECASE)
+        if m:
+            candidate = re.sub(r'\s+', ' ', m.group(1)).strip(' .;|')
+            if candidate:
+                return candidate
+    return ''
+
+
+def pick_credit(item_elem, summary_text: str = ''):
     # Prefer explicit media credit tags from RSS/MRSS/EBU
     credit_tags = [
         '{http://search.yahoo.com/mrss/}credit',
@@ -112,7 +132,15 @@ def pick_credit(item_elem):
             # If role is present but unknown, still keep first non-empty credit
             return txt
 
-    return ''
+    # Fallback to common textual fields (may be byline/author/credit in some feeds)
+    fallback_tags = ['author', '{http://purl.org/dc/elements/1.1/}creator', 'dc:creator']
+    for tag in fallback_tags:
+        node = item_elem.find(tag)
+        if node is not None and (node.text or '').strip():
+            return (node.text or '').strip()
+
+    # Finally try to parse credit text from description/content HTML
+    return extract_credit_from_text(summary_text)
 
 
 def pick_image(item_elem, summary_text=''):
@@ -171,12 +199,30 @@ def extract_meta_image_from_html(html: str) -> str:
     return ''
 
 
+def extract_meta_credit_from_html(html: str) -> str:
+    patterns = [
+        r'<meta[^>]+(?:property|name)=["\'](?:og:image:credit|twitter:image:credit|parsely-image-credit)["\'][^>]+content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image:credit|twitter:image:credit|parsely-image-credit)["\']',
+    ]
+    for pat in patterns:
+        m = re.search(pat, html, flags=re.IGNORECASE)
+        if m:
+            return re.sub(r'\s+', ' ', m.group(1)).strip()
+
+    # last-resort text scan for visible credit patterns
+    return extract_credit_from_text(html)
+
+
 def fallback_meta_from_article(url: str):
     try:
         html = fetch_xml(url)
-        return extract_meta_title_from_html(html), extract_meta_image_from_html(html)
+        return (
+            extract_meta_title_from_html(html),
+            extract_meta_image_from_html(html),
+            extract_meta_credit_from_html(html),
+        )
     except Exception:
-        return '', ''
+        return '', '', ''
 
 
 def parse_channels_conf(path: Path):
@@ -373,7 +419,7 @@ def parse_feed(source: str, xml_text: str, max_items=None):
             summary = text_of(item, ['description'])
             link = resolve_google_link(link, summary) if source == 'iFinnmark' else link
             image_url = pick_image(item, summary)
-            image_credit = pick_credit(item)
+            image_credit = pick_credit(item, summary)
             if title and link:
                 items.append({
                     'source': source,
@@ -401,7 +447,7 @@ def parse_feed(source: str, xml_text: str, max_items=None):
         summary = text_of(entry, ['atom:summary', 'summary', 'atom:content', 'content'])
         link = resolve_google_link(link, summary) if source == 'iFinnmark' else link
         image_url = pick_image(entry, summary)
-        image_credit = pick_credit(entry)
+        image_credit = pick_credit(entry, summary)
         if title and link:
             items.append({
                 'source': source,
@@ -464,13 +510,29 @@ def main():
             continue
         if item.get('source') not in IMAGE_FALLBACK_SOURCES:
             continue
-        title_meta, img = fallback_meta_from_article(item.get('url', ''))
+        title_meta, img, credit_meta = fallback_meta_from_article(item.get('url', ''))
         if img:
             item['image_url'] = img
+        if credit_meta and not (item.get('image_credit') or '').strip():
+            item['image_credit'] = credit_meta
         if title_meta and item.get('source') == 'iFinnmark':
             t = re.sub(r'\s*-\s*iFinnmark\s*$', '', title_meta, flags=re.IGNORECASE)
             item['title'] = t or item.get('title', '')
         checked += 1
+
+    # Try to enrich missing credits for items that already have image (limited requests).
+    credit_checked = 0
+    for item in items:
+        if credit_checked >= 60:
+            break
+        if not (item.get('image_url') or '').strip():
+            continue
+        if (item.get('image_credit') or '').strip():
+            continue
+        title_meta, img_meta, credit_meta = fallback_meta_from_article(item.get('url', ''))
+        if credit_meta:
+            item['image_credit'] = credit_meta
+        credit_checked += 1
 
     # Remove known placeholder/logo-only images (e.g. SVT generic logo cards).
     items = [
