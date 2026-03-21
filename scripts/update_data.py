@@ -22,7 +22,7 @@ DEFAULT_SOURCES = [
     {'name': 'Ságat', 'url': 'https://www.sagat.no/atom.xml'},
 ]
 
-IMAGE_FALLBACK_SOURCES = {'Ávvir', 'SVT Norrbotten', 'iFinnmark'}
+IMAGE_FALLBACK_SOURCES = {'Ávvir', 'SVT Norrbotten', 'iFinnmark', 'Ságat'}
 
 # Freshness prioritization
 FRESH_HOURS_STRICT = 72
@@ -498,14 +498,32 @@ def parse_feed(source: str, xml_text: str, max_items=None):
     if limit:
         atom_entries = atom_entries[:limit]
     for entry in atom_entries:
-        title = text_of(entry, ['atom:title', 'title'])
+        title = (
+            entry.findtext('{http://www.w3.org/2005/Atom}title')
+            or entry.findtext('title')
+            or ''
+        ).strip()
         link = ''
-        link_node = entry.find('atom:link', ns) or entry.find('link')
+        link_node = entry.find('{http://www.w3.org/2005/Atom}link')
+        if link_node is None:
+            link_node = entry.find('link')
         if link_node is not None:
-            link = link_node.attrib.get('href', '') or (link_node.text or '').strip()
-        updated = text_of(entry, ['atom:updated', 'updated', 'atom:published', 'published'])
+            link = (link_node.attrib.get('href', '') or (link_node.text or '')).strip()
+        updated = (
+            entry.findtext('{http://www.w3.org/2005/Atom}updated')
+            or entry.findtext('updated')
+            or entry.findtext('{http://www.w3.org/2005/Atom}published')
+            or entry.findtext('published')
+            or ''
+        ).strip()
         date = parse_date(updated)
-        summary = text_of(entry, ['atom:summary', 'summary', 'atom:content', 'content'])
+        summary = (
+            entry.findtext('{http://www.w3.org/2005/Atom}summary')
+            or entry.findtext('summary')
+            or entry.findtext('{http://www.w3.org/2005/Atom}content')
+            or entry.findtext('content')
+            or ''
+        ).strip()
         link = resolve_google_link(link, summary) if source == 'iFinnmark' else link
         image_url = pick_image(entry, summary)
         image_credit = pick_credit(entry, summary)
