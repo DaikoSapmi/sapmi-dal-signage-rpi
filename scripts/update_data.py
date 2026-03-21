@@ -93,6 +93,28 @@ def is_unwanted_logo_image(url: str, source: str = '') -> bool:
     return False
 
 
+def pick_credit(item_elem):
+    # Prefer explicit media credit tags from RSS/MRSS/EBU
+    credit_tags = [
+        '{http://search.yahoo.com/mrss/}credit',
+        '{urn:ebu}credit',
+        'credit',
+    ]
+
+    for tag in credit_tags:
+        for node in item_elem.findall(tag):
+            txt = (node.text or '').strip()
+            role = (node.attrib.get('role', '') or '').lower()
+            if not txt:
+                continue
+            if role in ('photographer', 'photo', 'image', ''):
+                return txt
+            # If role is present but unknown, still keep first non-empty credit
+            return txt
+
+    return ''
+
+
 def pick_image(item_elem, summary_text=''):
     # Try RSS/MRSS image fields first
     media_tags = [
@@ -317,6 +339,7 @@ def parse_ifinnmark_html(source: str, page_url: str, html_text: str, max_items=N
             'published_at': '',
             'summary': '',
             'image_url': '',
+            'image_credit': '',
         })
 
         if len(items) >= limit:
@@ -350,6 +373,7 @@ def parse_feed(source: str, xml_text: str, max_items=None):
             summary = text_of(item, ['description'])
             link = resolve_google_link(link, summary) if source == 'iFinnmark' else link
             image_url = pick_image(item, summary)
+            image_credit = pick_credit(item)
             if title and link:
                 items.append({
                     'source': source,
@@ -358,6 +382,7 @@ def parse_feed(source: str, xml_text: str, max_items=None):
                     'published_at': date.isoformat() if date else '',
                     'summary': summary,
                     'image_url': image_url,
+                    'image_credit': image_credit,
                 })
         return items
 
@@ -376,6 +401,7 @@ def parse_feed(source: str, xml_text: str, max_items=None):
         summary = text_of(entry, ['atom:summary', 'summary', 'atom:content', 'content'])
         link = resolve_google_link(link, summary) if source == 'iFinnmark' else link
         image_url = pick_image(entry, summary)
+        image_credit = pick_credit(entry)
         if title and link:
             items.append({
                 'source': source,
@@ -384,6 +410,7 @@ def parse_feed(source: str, xml_text: str, max_items=None):
                 'published_at': date.isoformat() if date else '',
                 'summary': summary,
                 'image_url': image_url,
+                'image_credit': image_credit,
             })
     return items
 
