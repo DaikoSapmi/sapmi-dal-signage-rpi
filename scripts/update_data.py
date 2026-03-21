@@ -24,6 +24,11 @@ DEFAULT_SOURCES = [
 
 IMAGE_FALLBACK_SOURCES = {'Ávvir', 'SVT Norrbotten', 'iFinnmark'}
 
+# Known generic/placeholder logo images that should not be used as story media.
+SVT_PLACEHOLDER_IMAGE_HASHES = {
+    '2f93ba843f7e400a13c86112e65490896499522866cbeab7a04aa887efed39b6',
+}
+
 
 def fetch_xml(url: str) -> str:
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (SamiNewsBoard/1.0)'})
@@ -72,6 +77,19 @@ def _looks_like_image_url(url: str, node_type: str = '') -> bool:
     # No file extension in URL is also common (e.g. VG CDN), rely on MIME/type hints.
     if t.startswith('image/') or t.startswith('img/'):
         return True
+    return False
+
+
+def is_unwanted_logo_image(url: str, source: str = '') -> bool:
+    u = (url or '').lower()
+    s = (source or '').lower()
+    if not u:
+        return False
+
+    # SVT "Nyheter från dagen" and similar cards often use a generic SVT logo image.
+    if 'svt' in s and 'svtstatic.se/image-news' in u:
+        return any(h in u for h in SVT_PLACEHOLDER_IMAGE_HASHES)
+
     return False
 
 
@@ -426,6 +444,12 @@ def main():
             t = re.sub(r'\s*-\s*iFinnmark\s*$', '', title_meta, flags=re.IGNORECASE)
             item['title'] = t or item.get('title', '')
         checked += 1
+
+    # Remove known placeholder/logo-only images (e.g. SVT generic logo cards).
+    items = [
+        it for it in items
+        if not is_unwanted_logo_image(it.get('image_url', ''), it.get('source', ''))
+    ]
 
     # Keep only news that actually has image/media, so signage never rotates text-only items.
     items = [it for it in items if (it.get('image_url') or '').strip()]

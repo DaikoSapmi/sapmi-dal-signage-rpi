@@ -120,6 +120,27 @@ function wireSettings(){
   };
 }
 
+function creditFromImageUrl(url=''){
+  try{
+    const h = new URL(url).hostname.toLowerCase();
+    if(h.includes('nrk.no')) return 'NRK';
+    if(h.includes('svtstatic.se') || h.includes('svt.se')) return 'SVT';
+    if(h.includes('yle.fi') || h.includes('cdn.yle.fi')) return 'Yle';
+    if(h.includes('avvir.no')) return 'Ávvir';
+    if(h.includes('acdn.no') || h.includes('ifinnmark.no')) return 'iFinnmark';
+    return h.replace(/^www\./,'');
+  }catch{
+    return '';
+  }
+}
+
+function imageCredit(item){
+  if(item?.image_credit && String(item.image_credit).trim()) return String(item.image_credit).trim();
+  const fromUrl = creditFromImageUrl(item?.image_url || '');
+  if(fromUrl) return `Govva: ${fromUrl}`;
+  return '';
+}
+
 function render(item){
   const stage=document.getElementById('stage');
   stage.classList.add('fade');
@@ -128,10 +149,14 @@ function render(item){
     const source=document.getElementById('source');
     const title=document.getElementById('title');
     const meta=document.getElementById('meta');
+    const credit=document.getElementById('credit');
     bg.src = item.image_url || 'https://picsum.photos/1920/1080?blur=1';
     source.textContent = item.source || 'Sápmi dál';
     title.textContent = item.title;
     meta.textContent = fmt(item.published_at);
+    const c = imageCredit(item);
+    credit.textContent = c;
+    credit.style.display = c ? 'block' : 'none';
     stage.classList.remove('fade');
   },620);
 }
