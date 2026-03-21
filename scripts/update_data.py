@@ -24,6 +24,12 @@ DEFAULT_SOURCES = [
 
 IMAGE_FALLBACK_SOURCES = {'Ávvir', 'SVT Norrbotten', 'iFinnmark'}
 
+# Freshness prioritization
+FRESH_HOURS_STRICT = 72
+FRESH_HOURS_FALLBACK = 168
+MIN_ITEMS_TARGET = 12
+MAX_PER_SOURCE = 3
+
 # NRK Sápmi: supplement oddasat with more NRK feeds listed on nrk.no/rss/
 NRK_SAPMI_EXTRA_FEEDS = [
     'https://www.nrk.no/tromsogfinnmark/toppsaker.rss',
@@ -72,6 +78,29 @@ def parse_date(value: str):
         except Exception:
             continue
     return None
+
+
+def item_datetime(item: dict):
+    return parse_date(item.get('published_at', '') or '')
+
+
+def item_age_hours(item: dict, now: datetime) -> float:
+    dt = item_datetime(item)
+    if not dt:
+        return 10_000.0
+    return max(0.0, (now - dt).total_seconds() / 3600.0)
+
+
+def freshness_points(age_h: float) -> int:
+    if age_h <= 6:
+        return 100
+    if age_h <= 24:
+        return 70
+    if age_h <= 72:
+        return 40
+    if age_h <= 168:
+        return 10
+    return 0
 
 
 def _looks_like_image_url(url: str, node_type: str = '') -> bool:
@@ -570,8 +599,17 @@ def main():
             nrk_filtered.append(it)
     items = nrk_filtered
 
-    # Sort newest first, with a slight NRK-Sápmi relevance boost where available.
-    items.sort(key=lambda x: ((x.get('_nrk_rel', 0)), x.get('published_at', '')), reverse=True)
+    now = datetime.now(timezone.utc)
+
+    # Sort by freshness first, with slight NRK-Sápmi relevance boost.
+    items.sort(
+        key=lambda x: (
+            freshness_points(item_age_hours(x, now)),
+            x.get('_nrk_rel', 0),
+            x.get('published_at', ''),
+        ),
+        reverse=True,
+    )
 
     # Fallback image scraping for sources where feeds often omit images
     checked = 0
@@ -614,6 +652,25 @@ def main():
 
     # Keep only news that actually has image/media, so signage never rotates text-only items.
     items = [it for it in items if (it.get('image_url') or '').strip()]
+
+    # Hard age cut-off with fallback window if too few items.
+    fresh_strict = [it for it in items if item_age_hours(it, now) <= FRESH_HOURS_STRICT]
+    if len(fresh_strict) >= MIN_ITEMS_TARGET:
+        items = fresh_strict
+    else:
+        items = [it for it in items if item_age_hours(it, now) <= FRESH_HOURS_FALLBACK]
+
+    # Per-source cap so one source with many old items cannot dominate.
+    per_source = {}
+    capped = []
+    for it in items:
+        src = it.get('source') or 'Eará'
+        per_source[src] = per_source.get(src, 0)
+        if per_source[src] >= MAX_PER_SOURCE:
+            continue
+        per_source[src] += 1
+        capped.append(it)
+    items = capped
 
     # Internal ranking keys should not leak to output JSON.
     for it in items:
