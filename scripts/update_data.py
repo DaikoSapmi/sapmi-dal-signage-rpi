@@ -135,15 +135,17 @@ def extract_credit_from_text(text: str) -> str:
 
     # Common credit markers in NO/SE/FI/EN + Sami UI label.
     patterns = [
-        r'(?:Foto|Bild|Kuva|Photo|Govva)\s*[:\-]\s*([^<\n\r]+)',
-        r'(?:Fotograf|Photographer)\s*[:\-]\s*([^<\n\r]+)',
-        r'©\s*([^<\n\r]+)',
+        r'(?:Foto|Bild|Kuva|Photo|Govva)\s*[:\-]\s*([^<"\n\r]+)',
+        r'(?:Fotograf|Photographer)\s*[:\-]\s*([^<"\n\r]+)',
+        r'©\s*([^<"\n\r]+)',
     ]
 
     for pat in patterns:
         m = re.search(pat, text, flags=re.IGNORECASE)
         if m:
             candidate = re.sub(r'\s+', ' ', m.group(1)).strip(' .;|')
+            # Remove common HTML-attribute bleed from inline snippets.
+            candidate = re.split(r'\s+(?:data-[a-z0-9_-]+|title|class|src|alt)=', candidate, maxsplit=1, flags=re.IGNORECASE)[0].strip(' .;|')
             if candidate:
                 return candidate
     return ''

@@ -143,6 +143,7 @@ function cleanCredit(raw=''){
     .replace(/<[^>]*>/g, ' ')
     .replace(/\"\>.*$/g, '')
     .replace(/"\>.*$/g, '')
+    .replace(/"\s+(?:data-|title=|class=|src=|alt=).*/i, '')
     .replace(/\s+/g, ' ')
     .trim();
 
