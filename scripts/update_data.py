@@ -427,6 +427,9 @@ def main():
             item['title'] = t or item.get('title', '')
         checked += 1
 
+    # Keep only news that actually has image/media, so signage never rotates text-only items.
+    items = [it for it in items if (it.get('image_url') or '').strip()]
+
     payload = {
         'updated_at': datetime.now(timezone.utc).isoformat(),
         'count': len(items),
