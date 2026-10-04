@@ -43,7 +43,7 @@ Etter reboot skal skjermen starte automatisk i kiosk-modus på:
 Rediger kanalene her:
 
 ```bash
-nano web/data/channels.conf
+nano ~/sapmi-dal-signage-rpi/web/data/channels.conf
 ```
 
 Innstilling + format:
